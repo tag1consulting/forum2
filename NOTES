@@ -1,0 +1,78 @@
+/*
+  - to make a forum you HAVE to assign at least one vocabulary (you could create a vocabulary specific to forums, or use an already defined vocabulary)
+  - related terms not supported, terms must NOT be required, multiple supported, hierarchy not supported but in todo
+  
+  features:
+  - topics divided into pages, can change order
+  - show how many new topics/replies are there for a user
+  - funky icons for topics and to show if a topic is new/updated (optional)
+  - mixes well with taxonomy-based permissions
+  - to move a topic just change its terms
+  - multiple terms are supported, and topics will appear in every selected forum. right now this can be confusing, it is not specificated that it appears in different forums
+  - you can "close" a topic: just set to read-only its comments
+
+  comment.patch:
+  + fix bug which lets a user poke at forbidden comments using reply
+  - when a user adds a comment, default subject should be "re: $node->title" (comment.patch)
+  + comments of a node can be "read only", "read/write" (enabled), disabled
+
+  todo:
+  + just one vocabulary for browsing
+  - cache index and topic structures
+  - separate html and code (theme_invoke)
+  + if no vocabulary, just one level of forum (no)
+  + admin can choose categories which are not containers of topics, but just of other forums
+  - check why forums appear in queue too; some users post immediatly, others do not?
+  - save user settings
+
+  minor:
+  - forum icons
+  - topic icons
+  - topics per page
+  - number of topics in forums
+
+  cache:
+  - clean triggers: add comment (later, with hook), add node, timer
+
+
+
+  - show meaning of folder icons
+  - review table indexing and profile
+  - moved topics (shadow could be a forum property)
+  - in the first page, number of new topics for that user
+  - user preferences: how many topics, in which order; checkbox in topic settings to "save settings"
+  - block with active (last) topics
+  - search
+  - review use of the taxonomy api (export some functions to taxo)
+  - hierarchy, useful?
+  - what if a topic belongs to more than one term? could be interesting: "this topic talks about both arguments, so it appears in both categories" (advanded)
+  - split a topic (boooring)
+  - visible/invisible topics (this has more to do with taxo)
+  - wizards for easy permissions?
+  - start new topic in forum summary
+  <moshe>
+  > - i think we can improve the display of terms in forum nodes by adding a
+  > 'Forum' link at the very left of the term hierarchy list. this will
+  > hyperlink to the main forum page (module.php?mod=forum2). You already link
+  > to this page today but the text on this link is a vocabulary name, not
+  > 'Forum'. The vocabulary text might instead hyperlink to topics within that
+  > vocabulary only. Does this make sense? Similarly, the vocabulary names on
+  > the main page ought to be hyperlinked as well ... I focus on term 
+  > display in
+  > this module because I'm sure this will be a model for all other 
+  > node types.
+  </moshe>
+  
+  about permissions:
+  you can set permissions so to have different configurations. remember you can set permissions globally or based on a term. interesting permissions to set are: "access content" (read topics), "post content" (write a new topic), "post comments" (reply to topics)
+  
+  a user that has "administer nodes" can:
+  - open/close topics (set comment to "read/write" or "read only")
+  - edit a topic
+  - delete a topic
+  - in the future "move a topic", with the option to leave a "shadow" (a message to show where the topic has been moved)
+  
+  pay a lot of attention not to give too many permissions! if you give a user a certain permission for a certain term, he will have that permission for every node with that term, not just forums!!
+  
+  
+*/

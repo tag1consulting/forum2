@@ -1,0 +1,8 @@
+this patch enables saving of arrays in variables.
+it adds some overhead, both in computation time and in space in the db, but not too much imo
+
+add to update:
+$result = db_query("SELECT name, value FROM variable");
+while ($var = db_fetch_object($result)) {
+  db_query("UPDATE variable SET value = '%s' WHERE name = '%s'", serialize($var->value), $var->name);
+}

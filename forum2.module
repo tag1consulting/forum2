@@ -1,0 +1,619 @@
+<?php
+// $Id$
+
+function forum2_node($field) {
+  $info["name"] = t("discussion forum");
+  $info["description"] = t("A forum is a threaded discussion, enabling users to communicate about a particular topic.");
+
+  return $info[$field];
+}
+
+function forum2_access($op, $node) {
+  global $tid;
+  if ($op == "view") {
+    return $node->status;
+  }
+  if ($op == "create") {
+    $context->tid = $tid;
+    return user_access("post content", $context);
+  }
+}
+
+function forum2_conf_options() {
+  foreach (taxonomy_get_vocabularies("forum2") as $vid => $voc) {
+    $vocs[$vid] = $voc->name;
+  }
+  $output .= "<a name=\"image_nav_vocabulary\"></a>";
+  $output .= form_select("Forum vocabulary", "forum2_nav_vocabulary", variable_get("forum2_nav_vocabulary", ""),   $vocs, t("One of the taxonomy vocabularies will be the navigation tree."));
+  $output .= _taxonomy_term_select("Containers", "forum2_containers", variable_get("forum2_containers", ""), variable_get("forum2_nav_vocabulary", ""), t("You can choose vocabularies which will not have topics, but will be just containers for other forums."), 1, t("<none>"));
+
+  $output .= form_textfield("Topic icons path", "forum2_topic_icon_path", variable_get("forum2_topic_icon_path", "images/forum/topics/"), 30, 255, "Path to topic icons. Leave blank to turn off.");
+  $output .= form_textfield("Folder icons path", "forum2_folder_icon_path", variable_get("forum2_folder_icon_path", "images/forum/folder/"), 30, 255, "Path to folder (default, hot, new, closed) icons. Leave blank to turn off.");
+  $number = array(5 => 5, 10 => 10, 15 => 15, 20 => 20, 25 => 25, 30 => 30, 35 => 35, 40 => 40, 50 => 50, 60 => 60, 80 => 80, 100 => 100, 10000=>10000);
+  $output .= form_select("Hot topic threshold", "forum2_hot_topic", variable_get("forum2_hot_topic", 15), $number, "Number of posts a topic must have to be \"hot\".");
+  $number = array(5 => 5, 10 => 10, 15 => 15, 20 => 20, 25 => 25, 30 => 30, 35 => 35, 40 => 40, 50 => 50, 60 => 60, 80 => 80, 100 => 100);
+  $output .= form_select("Topics per page", "forum2_per_page", variable_get("forum2_per_page", 10), $number, "The maximum number of topics displayed per page; links to browse messages automatically displayed.");
+  $forder = array(1 => "Date - newest first", 2 => "Date - oldest first", 3 => "Posts - most active first", 4=> "Posts - least active first");
+  $output .= form_select("Default order", "forum2_order", variable_get("forum2_order", 1), $forder, "The default display order for topics");
+
+  return $output;
+}
+
+function forum2_save($op, $node) {
+  if ($op == "approve") {
+    return array("status" => 1);
+  }
+
+  if ($op == "create") {
+    return array("tid", "icon_num", "shadow");
+  }
+
+  if ($op == "decline") {
+    return array("status" => 0);
+  }
+
+  if ($op == "update") {
+    #print_r($node);
+    // if she changed the term, we could have to leave a shadow
+    $old_terms = explode(",", $node->old_taxonomy);
+    foreach ($node->taxonomy as $term) {
+      if ($term && (!in_array($term, $old_terms)) && $node->shadow) {
+        $shadow = $term;
+        break;
+      }
+    }
+    return array("tid", "icon_num", "shadow" => $shadow, "old_taxonomy");
+  }
+}
+
+function forum2_load($node) {
+  $forum = db_fetch_object(db_query("SELECT * FROM forum2 WHERE nid = '$node->nid'"));
+
+  return $forum;
+}
+
+function forum2_link($type) {
+  if ($type == "page" && user_access("access content")) {
+    $links[] = "<a href=\"module.php?mod=forum2\">". t("forum") ."</a>";
+  }
+
+  return $links ? $links : array();
+}
+
+function forum2_view($node) {
+  global $theme;
+    
+  $term_data = array_shift(taxonomy_node_get_terms($node->nid));
+  if (!$term_data) {
+    // we are previewing
+    $term_data = taxonomy_get_term($node->taxonomy[0]);
+  }
+  $voc = taxonomy_get_vocabulary($term_data->vid);
+
+  $output .= "<p>"._forum2_get_icon($node)." <a href=\"module.php?mod=forum2\">".check_output($voc->name)."</a> : <a href=\"module.php?mod=forum2&tid=$term_data->tid\">".check_output($term_data->name)."</a>";  
+  
+  $output .= " / <b>". check_output($node->title) ."</b><br>".t("%a by %b", array("%a" => format_date($node->created), "%b" => format_name($node)))."</p><p>". check_output($node->body, 1) ."</p>";
+  $output .= "<p>". $theme->links(link_node($node, $main)) ."</p>";
+
+  $theme->box(t("Discussion forum"), $output);
+}
+
+function forum2_form(&$node, &$help, &$error) {
+  global $tid;
+  if (!$tid) {
+    // editing: load category from taxonomy
+    #$tid = implode(",", array_keys(taxonomy_node_get_terms($node->nid)));
+    //$output .= implode("<p>", taxonomy_node_form("forum2", $node));
+    $output .= "<input type=\"hidden\" name=\"edit[old_taxonomy]\" value=\"".implode(",", array_keys(taxonomy_node_get_terms($node->nid)))."\">";
+    $output .= form_checkbox(t("Leave shadow?"), "shadow", 1, 1, t("If you move this topic, you can leave a link in the old forum to the new forum."));
+  } else {
+    $output .= "<input type=\"hidden\" name=\"edit[taxonomy][]\" value=\"$tid\">";
+  }
+  
+  $output .= _taxonomy_term_select("Forum", "forum2_containers", $tid, variable_get("forum2_nav_vocabulary", ""), "", 0, "", variable_get("forum2_containers", ""));
+  
+  #print_r($node);
+  if ($icon_path = variable_get("forum2_topic_icon_path", "images/forum/topics/")) {
+    if ($node->icon) {
+      // we are editing post
+      if ($dir = @opendir($icon_path)) {
+        $icon_num = 0;
+        while($icon = readdir($dir)) {
+          if ($icon == '.' || $icon == '..') {continue;}
+          if ($node->icon == $icon) {$checked = "checked";} else {$checked = "";}
+          $radio .= "<input type=\"radio\" name=\"edit[icon_num]\" value=\"$icon_num\" $checked><img src=\"$icon_path$icon\"> \n";
+          $icon_num++;
+        }
+        closedir($dir);
+      }
+    } else {
+      if ($dir = @opendir($icon_path)) {
+        $icon_num = 0;
+        while($icon = readdir($dir)) {
+          if ($icon == '.' || $icon == '..') {continue;}
+          if ($node->icon_num == $icon_num) {$checked = "checked";} else {$checked = "";}
+          $radio .= "<input type=\"radio\" name=\"edit[icon_num]\" value=\"$icon_num\" $checked><img src=\"$icon_path$icon\"> \n";
+          $icon_num++;
+        }  
+        closedir($dir);
+      }
+    }
+    $output .= form_item(t("Topic icon"), $radio);
+  }
+  $output .= form_textarea("Body", "body", $node->body, 60, 10);
+
+  return $output;
+}
+
+function forum2_insert($node) {
+  $node->icon = _forum2_decode_icon($node);
+  if (!$node->shadow) {
+    db_query("INSERT INTO forum2 (nid, icon) VALUES ('".check_query($node->nid)."', '".check_query($node->icon)."')");
+  } else {
+    // we created a shadow, a link to a moved topic in a new forum
+    db_query("INSERT INTO forum2 (nid, icon, shadow) VALUES ('".check_query($node->nid)."', '".check_query($node->icon)."', '".check_query($node->shadow)."')");
+  }
+}
+
+function forum2_update($node) {
+  #print_r($node);
+  $node->icon = _forum2_decode_icon($node);
+  db_query("UPDATE forum2 SET icon = '".check_query($node->icon)."' WHERE nid = '".check_query($node->nid)."'");
+  if ($node->shadow) {
+    // insert in old forum a new topic, with link to new forum
+    #print_r($node);
+    $node->nid = "";
+    $node->type = "forum2";
+    #$node->title = $title;
+    $node->status = 1;
+    #$node->comment = 0;
+    $node->taxonomy = array($node->old_taxonomy);
+    #print_r($node);
+    node_submit($node);
+    #node_save(array2object(array("uid" => $node->uid, "type" => "forum2", "title" => $node->title, "status" => 1, "comment" => 0, "shadow" => $node->shadow)), array("uid", "title", "type", "status", "comment", "shadow", "icon"));
+  }
+}
+
+function _forum2_decode_icon($node) {
+  // to prevent malicious users
+  #print_r($node);
+  if ($icon_path = variable_get("forum2_topic_icon_path", "images/forum/topics/")) {
+    if ($dir = @opendir($icon_path)) {
+      $icon_num = 0;
+      while($icon = readdir($dir)) {
+        if ($icon == '.' || $icon == '..') {continue;}
+        if ($icon_num == $node->icon_num) {$myicon = $icon;}
+        $icon_num++;
+      }  
+      closedir($dir);
+    }
+  }
+  return $myicon;
+}
+
+function forum2_delete(&$node) {
+  db_query("DELETE FROM forum2 WHERE nid = '".check_query($node->nid)."'");
+}
+
+function _forum2_num_comments($nid) {
+  $value = db_fetch_object(db_query("SELECT COUNT(cid) AS count FROM comments WHERE nid = '$nid'"));
+  return ($value) ? $value->count : 0;
+}
+
+function _forum2_last_comment($nid) {
+  $value = db_fetch_object(db_query("SELECT timestamp FROM comments WHERE nid = '$nid' ORDER BY timestamp DESC LIMIT 1"));
+  return ($value) ? format_date($value->timestamp, "small") : "&nbsp;";
+}
+
+function _forum2_last_reply($nid) {
+  $value = db_fetch_object(db_query("
+    SELECT c.timestamp, u.name, u.uid
+    FROM comments c
+    LEFT JOIN users u ON c.uid = u.uid
+    WHERE c.nid = '$nid'
+    ORDER BY c.timestamp DESC
+    LIMIT 1
+  "));
+  return $value;
+}
+
+function _forum2_format($topic) {
+  if ($topic) {
+    return format_date($topic->timestamp, "small")."<br>".t("by")." ". format_name($topic);
+  } else {
+    return message_na();
+  }
+}
+
+function forum2_get_forums($tid = 0) {
+  global $user;
+  
+  if (!$tid) {$tid = 0;}
+  
+  $forums = unserialize(cache_get("forum2:$tid"));
+  if (!$forums) {
+    taxonomy_get_tree(variable_get("forum2_nav_vocabulary", ""), $_forums, $tid);
+    $n = 0;
+    foreach ($_forums as $forum) {
+      if (in_array($forum->tid, variable_get("forum2_containers", ""))) {
+        $forum->container = 1;
+      }
+      else {
+        $forum->num_topics = _forum2_num_topics($forum->tid);
+        $forum->num_posts = _forum2_num_replies($forum->tid) + $forum->num_topics;
+        $forum->last_post = _forum2_last_post($forum->tid);
+      }
+      $forums[$forum->tid] = $forum;
+      $n++;
+    }
+    cache_set("forum2:$tid", serialize($forums), time()+60*10);
+  }
+
+  if ($user->uid && $forums) {
+    #$topics_read = _forum2_topics_read($user->uid);
+    foreach (_forum2_topics_read($user->uid) as $tid => $old) {
+      $forums[$tid]->old_topics = $old;
+    }
+  }
+
+  return $forums;
+}
+
+function forum2_get_parents($tid) {
+  if ($tid) {
+    $parents[] = taxonomy_get_term($tid);
+  }
+  $n = 0;
+  while ($parent = taxonomy_get_parents($parents[$n]->tid)) {
+    $parents = array_merge($parents, $parent);
+    $n++;
+  }
+  return $parents;
+}
+
+function _forum2_num_topics($term) {
+  $value = db_fetch_object(db_query("SELECT COUNT(n.nid) AS count FROM node n, term_node r WHERE r.tid = '$term' AND n.nid = r.nid AND n.status = 1 AND n.type = 'forum2'"));
+  return ($value) ? $value->count : 0;
+}
+
+function _forum2_num_replies($term) {
+  $value = db_fetch_object(db_query("SELECT COUNT(*) AS count FROM comments c, term_node r, node n WHERE r.tid = '$term' AND n.nid = r.nid AND n.nid=c.nid AND n.status = 1 AND n.type = 'forum2'"));
+  return ($value) ? $value->count : 0;
+}
+
+function _forum2_topics_read($uid) {
+  $result = db_query("
+    SELECT tid, count(*) AS c
+    FROM history h, term_node r, node n
+    WHERE r.nid = h.nid
+    AND n.nid = h.nid
+    AND n.type = 'forum2'
+    AND n.status = 1
+    AND h.uid = ".check_query($uid)."
+    GROUP BY tid
+  ");
+  
+  while ($obj = db_fetch_object($result)) {
+    $topics_read[$obj->tid] = $obj->c;
+  }
+  
+  return $topics_read;
+}
+
+function _forum2_last_post($term) {
+  $topic = db_fetch_object(db_query("
+    SELECT n.created AS timestamp, u.name AS name, u.uid AS uid
+    FROM node n, term_node r
+    LEFT JOIN users u ON n.uid = u.uid
+    WHERE r.tid = '$term'
+    AND n.nid = r.nid
+    AND n.type = 'forum2'
+    AND n.status = 1
+    ORDER BY timestamp DESC
+    LIMIT 1
+  "));
+
+  $reply = db_fetch_object(db_query("
+    SELECT c.timestamp, u.name AS name, u.uid AS uid
+    FROM term_node r, node n
+    LEFT JOIN comments c ON n.nid=c.nid
+    LEFT JOIN users u ON c.uid = u.uid
+    WHERE r.tid = '$term'
+    AND n.nid = r.nid
+    AND n.type = 'forum2'
+    AND n.status = 1
+    ORDER BY c.timestamp DESC
+    LIMIT 1
+  "));
+
+  $value = ($topic->timestamp > $reply->timestamp) ? $topic : $reply;
+
+  return $value;
+}
+
+function forum2_get_topics($tid, $sortby, $forum2_per_page, $offset) {
+  global $user;
+
+  $term = taxonomy_get_term($tid);
+  $voc = taxonomy_get_vocabulary($term->vid);
+
+  switch ($sortby) {
+    case 1:
+      $sql_orderby = "date_sort DESC";
+      break;
+    case 2:
+      $sql_orderby = "date_sort ASC";
+      break;
+    case 3:
+      $sql_orderby = "num_comments DESC";
+      break;
+    case 4:
+      $sql_orderby = "num_comments ASC";
+      break;
+  }
+
+  if ($user->uid) {
+    $topics_read = _forum2_topics_read($user->uid);
+  }
+
+  $sql = "
+    SELECT n.nid, title, users.name AS name, users.uid AS uid, n.created AS timestamp, GREATEST(n.created, MAX(c.timestamp)) AS date_sort, COUNT(c.nid) AS num_comments, icon, n.comment AS comment_mode, shadow
+    FROM node n, term_node r
+    LEFT JOIN users ON n.uid = users.uid
+    LEFT JOIN comments c ON c.nid = n.nid
+    LEFT JOIN forum2 f ON n.nid = f.nid
+    WHERE n.nid = r.nid
+    AND r.tid = '".check_query($tid)."'
+    AND n.status = 1
+    AND n.type = 'forum2'
+    GROUP BY n.nid
+    ORDER BY $sql_orderby
+  ";
+   # LIMIT $offset, $forum2_per_page
+
+  $result = db_query($sql);
+
+  $n = 0;
+  while ($topic = db_fetch_object($result)) {
+    if ($n < $offset) {
+      $n++;
+      continue;
+    }
+    
+    $history = db_result(db_query("SELECT timestamp FROM history WHERE uid = '$user->uid' AND nid = '$topic->nid'"));
+    // folder is new if topic is new or there are new comments since last visit
+    if (!$history && $user->uid) {
+      $topic->new_replies = 0;
+      $topic->new = 1;
+    } else {
+      $comment = db_result(db_query("SELECT COUNT(c.nid) FROM node n LEFT JOIN comments c ON n.nid = c.nid WHERE n.nid = '$nid' AND timestamp > '". $history ."' GROUP BY n.nid"));
+
+      $topic->new_replies = $comments ? $comments : 0;
+      if ($topic->new_replies) {
+        $topic->new = 1;
+      } else {
+        $topic->new = 0;
+      }
+    }
+    $topic->last_reply = _forum2_last_reply($topic->nid);
+    $topics[] = $topic;
+    
+    $n++;
+    if ($n == $forum2_per_page) {
+      break;
+    }
+  }
+
+  return $topics;
+}
+
+function forum2_page() {
+  global $theme, $tid, $sortby, $forum2_per_page, $offset;
+
+  if (user_access("access content")) {
+    if (empty($sortby)) {
+      $sortby = variable_get("forum2_order",1);
+    }
+    if (empty($forum2_per_page)) {
+      $forum2_per_page = variable_get("forum2_per_page", 10);
+    }
+    if (empty($offset)) {
+      $offset = 0;
+    }
+  
+    $forums = forum2_get_forums($tid);
+    $parents = forum2_get_parents($tid);
+    $topics = forum2_get_topics($tid, $sortby, $forum2_per_page, $offset);
+
+    forum2_render($forums, $topics, $parents, $tid, $sortby, $forum2_per_page, $offset);
+  }
+  else {
+    $theme->header();
+    $theme->box(t("Access denied"), message_access());
+    $theme->footer();
+  }
+}
+
+/**
+*** render functions
+**/
+
+function forum2_render($forums, $topics, $parents, $tid, $sortby, $forum2_per_page, $offset) {
+  // forum list, topics list, topic browser and "add new topic" link
+  global $theme;
+  
+  $output .= forum2_forum_list($forums, $parents, $tid);
+  if ($tid && !in_array($tid, variable_get("forum2_containers", ""))) {
+    $output .= forum2_topic_list($topics, $sortby, $forum2_per_page, $offset);
+  }
+  
+  $theme->header();
+  $theme->box(t("Discussion forum"), $output);
+  if ($tid) {
+    $theme->box(t("Control panel"), forum2_topic_browser($sortby, $forum2_per_page, $offset));
+  }
+  $theme->footer();
+}
+
+function forum2_forum_list($forums, $parents, $tid) {
+  global $user;
+  if ($parents) {
+    foreach($parents as $p) {
+      if ($tid != $p->tid) {
+        $t[] = lm($p->name, array("mod" => "forum2", "tid" => $p->tid));
+      } else {
+        $t[] = $p->name;
+      }
+    }
+  }
+  $t[] = lm(t("forum"), array("mod" => "forum2"));
+
+  $output .= "<table border=\"0\" width=\"100%\">\n";
+  $output .= " <tr><th colspan=\"3\" align=\"left\">".implode(" : ", array_reverse($t)) ."</th>";
+  if ($forums) {
+    $output .= "<th>". t("topics") ."</th><th>". t("posts") ."</th><th>". t("last post") ."</th></tr>";
+
+
+    foreach ($forums as $forum) {
+      if ($forum->container) {
+        $output .= " <tr><td colspan=\"5\">".lm(check_output($forum->name), array("mod" => "forum2", "tid" => $forum->tid))."<br><small>". ($forum->description ? check_output($forum->description, 1) : "") ."</small></td></tr>";
+      } else { 
+        if ($user->uid) $new_topics = $forum->num_topics - $forum->old_topics;
+        $icon = _forum2_get_folder_icon($new_topics);
+        $output .= " <tr><td>&nbsp;</td><td>$icon</td>";
+        $output .= "<td><table><tr><td width=\"".($forum->depth*20)."\">&nbsp;</td><td>".lm(check_output($forum->name), array("mod" => "forum2", "tid" => $forum->tid))."<br><small>". check_output($forum->description, 1) ."</small></td></tr></table></td>";
+        $output .= "<td align=\"center\">".$forum->num_topics.($new_topics ? "<br>(".t("%a new", array("%a" => $new_topics)).")" : "")."</td><td align=\"center\">".$forum->num_posts."</td><td align=\"center\">"._forum2_format($forum->last_post)."</td></tr>";
+      }
+    }
+  }
+  $output .= "</table>\n";
+  
+  return $output;
+}
+
+function forum2_topic_browser() {
+  global $tid, $sortby, $forum2_per_page, $offset;
+
+  if (empty($sortby)) {
+    $sortby = variable_get("forum2_order",1);
+  }
+  if (empty($forum2_per_page)) {
+    $forum2_per_page = variable_get("forum2_per_page", 10);
+  }
+
+  $forum2_per_page_options = array(5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 80, 100);
+  foreach ($forum2_per_page_options as $value) {
+    $options .= " <option value=\"$value\"". ($forum2_per_page == $value ? " selected=\"selected\"" : "") .">".sprintf(t("%s topics per page"), $value)."</option>\n";
+  }
+
+  $output .= "<select name=\"forum2_per_page\">$options</select>\n";
+
+  $options = "";
+  $sortby_options = array(1 => t("Date - newest first"), 2 => t("Date - oldest first"), 3 => t("Posts - most active first"), 4=> t("Posts - least active first"));
+  foreach ($sortby_options as $key => $value) {
+    $options .= " <option value=\"$key\"". ($sortby == $key ? " selected=\"selected\"" : "") .">$value</option>\n";
+  }
+
+  $output .= "\n<select name=\"sortby\">$options</select>\n";
+  $output .= form_hidden("tid", $tid);
+  $output .= form_submit(t("Update settings"));
+  return form(form_item(t("Topic viewing options"), $output, t("Select your preferred way to display the topics and click 'Update settings'.")));
+}
+
+function forum2_topic_list($topics, $sortby, $forum2_per_page, $offset) {
+  global $theme, $id, $status, $tid, $user;
+
+  $num_topics = _forum2_num_topics($tid);
+
+  $output .= "<div align=\"center\"><small>(".strtr(t("%a topics, %b topics per page, page %c of %d"), array("%a" => $num_topics, "%b" => $forum2_per_page, "%c" => ceil(($offset + 1)/$forum2_per_page), "%d" => ceil($num_topics/$forum2_per_page))).")</small></div>";
+
+  if ($topics) {
+    $output .= "<table border=\"0\" width=\"100%\">\n";
+    $output .= " <tr><th>&nbsp;</th><th>&nbsp;</th><th>". t("topic") ."</th><th>". t("replies") ."</th><th>". t("posted") ."</th><th>". t("last reply") ."</th></tr>";
+
+    foreach ($topics as $topic) {
+      // folder is new if topic is new or there are new comments since last visit
+      if ($topic->shadow) {
+        $output .= "
+          <tr>
+            <td>"._forum2_get_folder_icon($topic->new, $topic->num_comments, $topic->comment_mode)."</td>
+            <td>"._forum2_get_icon($topic)."</td>
+            <td>". check_output($topic->title) ."</td>
+            <td align=\"center\" colspan=\"3\"><a href=\"module.php?mod=forum2&tid=$topic->shadow\">".t("This topic has been moved")."</a></td>
+          </tr>";
+      } else {
+        $output .= "
+          <tr>
+            <td>"._forum2_get_folder_icon($topic->new, $topic->num_comments, $topic->comment_mode)."</td>
+            <td>"._forum2_get_icon($topic)."</td>
+            <td><a href=\"node.php?id=$topic->nid\">". check_output($topic->title) ."</a></td>
+            <td align=\"center\">".$topic->num_comments.($topic->new_replies ? " (".t("%a new", array("%a" => $topic->new_replies)).")" : "")."</td>
+            <td align=\"center\">"._forum2_format($topic)."</td>
+            <td align=\"center\">"._forum2_format($topic->last_reply)."</td>
+          </tr>";
+      }
+    }
+
+    $output .= "</table></blockquote>\n";
+  }
+
+  $output .= "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr>";
+
+  if ($offset > 0) {
+    $output .= "<td width=\"33%\"><div align=\"left\"><h1><a href=\"module.php?mod=forum2&tid=$tid&sortby=$sortby&forum2_per_page=$forum2_per_page&offset=".($offset-$forum2_per_page)."\">".t("Previous topics")."</a></h1></div></td>";
+  } else {
+    $output .= "<td width=\"33%\">&nbsp;</td>";
+  }
+
+  $output .= "<td width=\"33%\"><div align=\"center\"><h1><a href=\"module.php?mod=node&op=add&type=forum2&tid=$tid\">".t("Start new topic")."</a></h1></div></td>";
+
+  if (count($topics) >= $forum2_per_page) {
+    $output .= "<td width=\"33%\"><div align=\"right\"><h1><a href=\"module.php?mod=forum2&tid=$tid&sortby=$sortby&forum2_per_page=$forum2_per_page&offset=".($offset+$forum2_per_page)."\">".t("Next topics")."</a></h1></div></td>";
+  } else {
+    $output .= "<td width=\"33%\">&nbsp;</td>";
+  }
+
+  $output .= "</tr></table>";
+
+  return $output;
+}
+
+
+function _forum2_get_icon($node) {
+  if (variable_get("forum2_topic_icon_path", "images/topics/") && $node->icon) {
+    return "<img src=\"".variable_get("forum2_topic_icon_path", "images/forum/topics/"). check_output($node->icon)."\">";
+  } else {
+    return "&nbsp;";
+  }
+}
+
+function _forum2_get_folder_icon($new_posts, $num_posts = 0, $comment_mode = 0) {
+  // "folder" icon because it's generally rendered as a folder
+  global $theme;
+
+  $base_path = variable_get("forum2_folder_icon_path", "images/forum/folder");
+  if ($base_path) {
+    if ($num_posts > variable_get("forum2_hot_topic", 15)) {
+      $icon = $new_posts ? "hot_new" : "hot";
+    } else {
+      $icon = $new_posts ? "new" : "default";
+    }
+    
+    if ($comment_mode == 1) {
+      $icon = "closed";
+    }
+
+    if ($theme->bbs_icons) {
+      $file = $theme->bbs_icons[$icon];
+    } else {
+      // default
+      $file = $base_path."/".$icon.".gif";
+    }
+    
+    return "<img src=\"$file\">";
+  } else {
+    return "&nbsp;";
+  }
+}
+
+?>
