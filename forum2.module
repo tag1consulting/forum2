@@ -281,12 +281,12 @@ function forum2_delete(&$node) {
 }
 
 function _forum2_num_comments($nid) {
-  $value = db_fetch_object(db_query("SELECT COUNT(cid) AS count FROM comments WHERE nid = '%d'", $nid));
+  $value = db_fetch_object(db_query("SELECT COUNT(cid) AS count FROM comments WHERE nid = '%d' AND status = 0", $nid));
   return ($value) ? $value->count : 0;
 }
 
 function _forum2_last_comment($nid) {
-  $value = db_fetch_object(db_query("SELECT timestamp FROM comments WHERE nid = '%d' ORDER BY timestamp DESC LIMIT 1", $nid));
+  $value = db_fetch_object(db_query("SELECT timestamp FROM comments WHERE nid = '%d' AND status = 0 ORDER BY timestamp DESC LIMIT 1", $nid));
   return ($value) ? format_date($value->timestamp, "small") : "&nbsp;";
 }
 
@@ -296,6 +296,7 @@ function _forum2_last_reply($nid) {
     FROM comments c
     LEFT JOIN users u ON c.uid = u.uid
     WHERE c.nid = '%d'
+    AND c.status = 0
     ORDER BY c.timestamp DESC
     LIMIT 1
   ", $nid));
@@ -369,7 +370,7 @@ function _forum2_num_topics($term) {
 }
 
 function _forum2_num_replies($term) {
-  $value = db_fetch_object(db_query("SELECT COUNT(*) AS count FROM comments c, term_node r, node n WHERE r.tid = '%d' AND n.nid = r.nid AND n.nid=c.nid AND n.status = 1 AND n.type = 'forum2'", $term));
+  $value = db_fetch_object(db_query("SELECT COUNT(*) AS count FROM comments c, term_node r, node n WHERE r.tid = '%d' AND n.nid = r.nid AND n.nid = c.nid AND n.status = 1 AND c.status = 0 AND n.type = 'forum2'", $term));
   return ($value) ? $value->count : 0;
 }
 
@@ -414,6 +415,7 @@ function _forum2_last_post($term) {
     AND n.nid = r.nid
     AND n.type = 'forum2'
     AND n.status = 1
+    AND c.status = 0
     ORDER BY c.timestamp DESC
     LIMIT 1
   ", $term));
@@ -444,6 +446,7 @@ function forum2_get_topics($tid, $sortby, $forum2_per_page, $offset) {
     WHERE n.nid = r.nid
     AND r.tid = '%d'
     AND n.status = 1
+    AND c.status = 0
     AND n.type = 'forum2'
     GROUP BY n.nid
     ORDER BY $sql_sortby
@@ -469,7 +472,7 @@ function forum2_get_topics($tid, $sortby, $forum2_per_page, $offset) {
         $topic->new_replies = 0;
         $topic->new = 1;
       } else {
-        $comments = db_result(db_query("SELECT COUNT(c.nid) FROM node n LEFT JOIN comments c ON n.nid = c.nid WHERE n.nid = '$topic->nid' AND timestamp > '$history' GROUP BY n.nid"));
+        $comments = db_result(db_query("SELECT COUNT(c.nid) FROM node n LEFT JOIN comments c ON n.nid = c.nid WHERE n.nid = '$topic->nid' AND c.status = 0 AND timestamp > '$history' GROUP BY n.nid"));
 
         $topic->new_replies = $comments ? $comments : 0;
         if ($topic->new_replies) {
