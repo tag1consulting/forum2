@@ -1,6 +1,0 @@
-  CREATE TABLE forum (
-    nid int unsigned not null primary key,
-    icon varchar(255) not null,
-    shadow int unsigned not null
-  );
-  
