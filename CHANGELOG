@@ -1,0 +1,12 @@
+24 June 2002
+------------------
+- admin setting to enable/disable internal caching
+- save user settings (number of topic, order)
+- topic move and shadow works again
+- block with active (last updated) topics
+- previous/next topics in topic view
+- checked that search works
+- new permission to set whether a role's post is online or queued
+- finished separation between html and code (theme_invoke)
+- checked search
+- cleanup, profiling, minor caching
