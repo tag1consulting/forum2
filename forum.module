@@ -32,7 +32,7 @@ function forum_conf_options() {
   }
   $output .= "<a name=\"image_nav_vocabulary\"></a>";
   $output .= form_select("Forum vocabulary", "forum_nav_vocabulary", variable_get("forum_nav_vocabulary", ""),   $vocs, t("One of the taxonomy vocabularies will be the navigation tree."));
-  $output .= _taxonomy_term_select("Containers", "forum_containers", variable_get("forum_containers", ""), variable_get("forum_nav_vocabulary", ""), t("You can choose vocabularies which will not have topics, but will be just containers for other forums."), 1, t("<none>"));
+  $output .= _taxonomy_term_select("Containers", "forum_containers", variable_get("forum_containers", array()), variable_get("forum_nav_vocabulary", ""), t("You can choose vocabularies which will not have topics, but will be just containers for other forums."), 1, t("<none>"));
 
   $output .= form_textfield("Topic icons path", "forum_topic_icon_path", variable_get("forum_topic_icon_path", "images/forum/topics/"), 30, 255, "Path to topic icons. Leave blank to turn off.");
   $output .= form_textfield("Folder icons path", "forum_folder_icon_path", variable_get("forum_folder_icon_path", "images/forum/folder/"), 30, 255, "Path to folder (default, hot, new, closed) icons. Leave blank to turn off.");
@@ -210,7 +210,7 @@ function forum_form(&$node, &$help, &$error) {
     }
   }
   
-  $output .= _taxonomy_term_select("Forum", "taxonomy", $tid, variable_get("forum_nav_vocabulary", ""), "", 0, "", variable_get("forum_containers", ""));
+  $output .= _taxonomy_term_select("Forum", "taxonomy", $tid, variable_get("forum_nav_vocabulary", ""), "", 0, "", variable_get("forum_containers", array()));
   
   if ($icon_path = variable_get("forum_topic_icon_path", "images/forum/topics/")) {
     if ($node->icon) {
