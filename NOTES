@@ -1,4 +1,6 @@
-/*
+*** forum and forum2 in this directory are exactly the same with a different name! ***
+
+
   - to make a forum you HAVE to assign at least one vocabulary (you could create a vocabulary specific to forums, or use an already defined vocabulary)
   - related terms not supported, terms must NOT be required, multiple supported, hierarchy supported
   
