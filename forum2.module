@@ -9,7 +9,6 @@ function forum2_node($field) {
 }
 
 function forum2_access($op, $node) {
-  global $tid;
   if ($op == "view") {
     return $node->status;
   }
@@ -51,9 +50,9 @@ function forum2_save($op, $node) {
 
   if ($op == "create") {
     if (user_access("immediatly posts forum topics")) {
-      $moderation = array("moderate" => 0, "status" => 1);
+      $moderation = array("body" => filter($node->body), "moderate" => 0, "status" => 1);
     } else {
-      $moderation = array("moderate" => 1, "status" => 0);
+      $moderation = array("body" => filter($node->body), "moderate" => 1, "status" => 0);
     }
     return array_merge($moderation, array("tid", "icon_num", "shadow"));
   }
@@ -71,7 +70,7 @@ function forum2_save($op, $node) {
         break;
       }
     }
-    return array("tid", "icon_num", "shadow" => $shadow, "old_container");
+    return array("body" => filter($node->body), "tid", "icon_num", "shadow" => $shadow, "old_container");
   }
 }
 
@@ -703,15 +702,15 @@ function forum2_topic_list($topics, $num_topics, $sortby, $forum2_per_page, $off
   $output .= "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr>";
 
   if ($offset > 0) {
-    $output .= "<td width=\"33%\"><div align=\"left\"><h1>".lm(t("Previous topics"), array("mod" => "forum2", "tid" => $tid, "offset" => ($offset-$forum2_per_page)))."</h1></div></td>";
+    $output .= "<td width=\"33%\"><div align=\"left\"><h4>".lm(t("Previous topics"), array("mod" => "forum2", "tid" => $tid, "offset" => ($offset-$forum2_per_page)))."</h4></div></td>";
   } else {
     $output .= "<td width=\"33%\">&nbsp;</td>";
   }
 
-  $output .= "<td width=\"33%\"><div align=\"center\"><h1>".lm(t("Start new topic"), array("mod" => "node", "op" => "add", "type" => "forum2", "tid" => $tid))."</h1></div></td>";
+  $output .= "<td width=\"33%\"><div align=\"center\"><h4>".lm(t("Start new topic"), array("mod" => "node", "op" => "add", "type" => "forum2", "tid" => $tid))."</h4></div></td>";
 
   if (count($topics) >= $forum2_per_page) {
-    $output .= "<td width=\"33%\"><div align=\"right\"><h1>".lm(t("Next topics"), array("mod" => "forum2", "tid" => $tid, "offset" => ($offset+$forum2_per_page)))."</h1></div></td>";
+    $output .= "<td width=\"33%\"><div align=\"right\"><h4>".lm(t("Next topics"), array("mod" => "forum2", "tid" => $tid, "offset" => ($offset+$forum2_per_page)))."</h4></div></td>";
   } else {
     $output .= "<td width=\"33%\">&nbsp;</td>";
   }
