@@ -469,7 +469,7 @@ function forum2_get_topics($tid, $sortby, $forum2_per_page, $offset) {
         $topic->new_replies = 0;
         $topic->new = 1;
       } else {
-        $comment = db_result(db_query("SELECT COUNT(c.nid) FROM node n LEFT JOIN comments c ON n.nid = c.nid WHERE n.nid = '$topic->nid' AND timestamp > '$history' GROUP BY n.nid"));
+        $comments = db_result(db_query("SELECT COUNT(c.nid) FROM node n LEFT JOIN comments c ON n.nid = c.nid WHERE n.nid = '$topic->nid' AND timestamp > '$history' GROUP BY n.nid"));
 
         $topic->new_replies = $comments ? $comments : 0;
         if ($topic->new_replies) {
