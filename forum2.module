@@ -115,7 +115,8 @@ function forum2_link($type, $node) {
   }
 
   if ($type == "menu.create" && user_access("post content")) {
-    $links[] = lm(t("create forum topic"), array("mod" => "node", "op" => "add", "type" => "forum2"), "", array("title" => t("Start a new forum topic.")));
+    // I had complains that having this link leads people not to choose a forum, and always post in the first forum.
+    #$links[] = lm(t("create forum topic"), array("mod" => "node", "op" => "add", "type" => "forum2"), "", array("title" => t("Start a new forum topic.")));
   }
 
   if ($type == "node" && $node->type == "forum2") {
@@ -129,6 +130,7 @@ function forum2_link($type, $node) {
       AND n.nid = f.nid
       AND t.tid = '%s'
       AND f.shadow = 0
+      AND n.status = 1
       GROUP BY n.nid
       ORDER BY ". _forum2_get_topic_order(isset($user->sortby) ? $user->sortby : variable_get("forum2_order",1));
       
@@ -173,14 +175,14 @@ function forum2_view($node, $main = 0) {
   }
   $voc = taxonomy_get_vocabulary($term_data->vid);
 
-/*
   $output .= "<p>"._forum2_get_icon($node)." ".lm(check_output($voc->name), array("mod" => "forum2"))." : ".lm(check_output($term_data->name), array("mod" => "forum2", "tid" => $term_data->tid));  
   
   $output .= " / <b>". check_output($node->title) ."</b><br>".t("%a by %b", array("%a" => format_date($node->created), "%b" => format_name($node)))."</p><p>". check_output($node->body, 1) ."</p>";
   $output .= "<p>". $theme->links(link_node($node, $main)) ."</p>";
 
-  $theme->box(t("Discussion forum"), $output);
-*/
+  #$theme->box(t("Discussion forum"), $output);
+
+  $node->title = _forum2_get_icon($node)." ".lm(check_output($voc->name), array("mod" => "forum2"))." : ".lm(check_output($term_data->name), array("mod" => "forum2", "tid" => $term_data->tid)) . " / <b>". check_output($node->title) ."</b>";
 
   $theme->node($node, $main);
 }
@@ -436,10 +438,6 @@ function forum2_get_topics($tid, $sortby, $forum2_per_page, $offset) {
   $voc = taxonomy_get_vocabulary($term->vid);
 
   $sql_sortby = _forum2_get_topic_order($sortby);
-
-  if ($user->uid) {
-    #$topics_read = _forum2_topics_read($user->uid);
-  }
 
   $sql = "
     SELECT n.nid, title, users.name AS name, users.uid AS uid, n.created AS timestamp, GREATEST(n.created, MAX(c.timestamp)) AS date_sort, COUNT(c.nid) AS num_comments, icon, n.comment AS comment_mode, shadow
@@ -785,7 +783,6 @@ function _forum_theme_invoke() {
   if (method_exists($theme, $function)) {
     return call_user_method_array($function, $theme, $args);
   } else {
-    #return $function($args);
     return call_user_func_array($function, $args);
   }
 }
