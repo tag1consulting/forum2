@@ -1,3 +1,7 @@
+14 July 2002
+------------------
+- topic node is rendered by theme->node()
+
 12 July 2002
 ------------------
 - minor glitch fixed

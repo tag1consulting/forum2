@@ -163,7 +163,7 @@ function forum2_link($type, $node) {
   return $links ? $links : array();
 }
 
-function forum2_view($node) {
+function forum2_view($node, $main = 0) {
   global $theme;
     
   $term_data = array_shift(taxonomy_node_get_terms($node->nid));
@@ -173,12 +173,16 @@ function forum2_view($node) {
   }
   $voc = taxonomy_get_vocabulary($term_data->vid);
 
+/*
   $output .= "<p>"._forum2_get_icon($node)." ".lm(check_output($voc->name), array("mod" => "forum2"))." : ".lm(check_output($term_data->name), array("mod" => "forum2", "tid" => $term_data->tid));  
   
   $output .= " / <b>". check_output($node->title) ."</b><br>".t("%a by %b", array("%a" => format_date($node->created), "%b" => format_name($node)))."</p><p>". check_output($node->body, 1) ."</p>";
   $output .= "<p>". $theme->links(link_node($node, $main)) ."</p>";
 
   $theme->box(t("Discussion forum"), $output);
+*/
+
+  $theme->node($node, $main);
 }
 
 function forum2_form(&$node, &$help, &$error) {
