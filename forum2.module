@@ -390,12 +390,12 @@ function _forum2_topics_read($uid) {
     $topics_read[$obj->tid] = $obj->c;
   }
   
-  return $topics_read;
+  return $topics_read ? $topics_read : array();
 }
 
 function _forum2_last_post($term) {
   $topic = db_fetch_object(db_query("
-    SELECT n.created AS timestamp, u.name AS name, u.uid AS uid
+    SELECT n.nid, n.created AS timestamp, u.name AS name, u.uid AS uid
     FROM node n, term_node r
     LEFT JOIN users u ON n.uid = u.uid
     WHERE r.tid = '%d'
@@ -404,10 +404,10 @@ function _forum2_last_post($term) {
     AND n.status = 1
     ORDER BY timestamp DESC
     LIMIT 1
-  "), $term);
+  ", $term));
 
   $reply = db_fetch_object(db_query("
-    SELECT c.timestamp, u.name AS name, u.uid AS uid
+    SELECT n.nid, c.timestamp, u.name AS name, u.uid AS uid
     FROM term_node r, node n
     LEFT JOIN comments c ON n.nid=c.nid
     LEFT JOIN users u ON c.uid = u.uid
@@ -417,7 +417,7 @@ function _forum2_last_post($term) {
     AND n.status = 1
     ORDER BY c.timestamp DESC
     LIMIT 1
-  "), $term);
+  ", $term));
 
   $value = ($topic->timestamp > $reply->timestamp) ? $topic : $reply;
 
@@ -493,13 +493,52 @@ function forum2_get_topics($tid, $sortby, $forum2_per_page, $offset) {
   return array($topics, $topic_num);
 }
 
+function _forum2_first_new($tid) {
+  global $user;
+  $result = db_query("
+      SELECT r.nid
+      FROM node n, history h, term_node r
+      WHERE n.type = 'forum2'
+      AND n.status = 1
+      AND h.nid = n.nid
+      AND r.nid = h.nid
+      AND r.tid = '%d'
+      AND h.uid = '%d'   
+    ", $tid, $user->uid);
+  while ($r = db_fetch_object($result)) {
+    $read[] = $r->nid;
+  }
+
+  if ($read) {
+    $nid = db_result(db_query("
+        SELECT r.nid AS c
+        FROM node n
+        LEFT JOIN term_node r ON r.nid = n.nid
+        WHERE n.type = 'forum2'
+        AND n.status = 1
+        AND r.tid = '%d'
+        AND NOT (r.nid IN (".implode(",", $read)."))
+        ORDER BY created
+        LIMIT 1
+      ", $tid));
+  }
+  
+  return $nid ? $nid : 0;
+}
+
 function forum2_page() {
   global $theme, $tid, $sortby, $forum2_per_page, $offset, $op, $user;
 
   if (user_access("access content")) {
     if ($op == "Update settings") {
       $user = user_save($user, array("sortby" => $sortby, "forum2_per_page" => $forum2_per_page));
-    }   
+    }
+    
+    if ($op == "first_new") {
+      if ($nid = _forum2_first_new($tid)) {
+        drupal_goto(drupal_url(array("id" => $nid), "node"));
+      }
+    }
   
     if (empty($sortby)) {
       $sortby = isset($user->sortby) ? $user->sortby : variable_get("forum2_order",1);
@@ -573,7 +612,21 @@ function forum2_forum_list($forums, $parents, $tid) {
         if ($user->uid) $new_topics = $forum->num_topics - $forum->old_topics;
         $icon = _forum2_get_folder_icon($new_topics);
         $output .= " <tr><td>&nbsp;</td><td>$icon</td>";
-        $output .= "<td><table><tr><td width=\"".($forum->depth*20)."\">&nbsp;</td><td>".lm(check_output($forum->name), array("mod" => "forum2", "tid" => $forum->tid))."<br><small>". check_output($forum->description, 1) ."</small></td></tr></table></td>";
+        $output .= "<td><table><tr><td width=\"".($forum->depth*20)."\">&nbsp;</td><td>".lm(check_output($forum->name), array("mod" => "forum2", "tid" => $forum->tid))."<br><small>". check_output($forum->description, 1);
+        
+        $links = array();
+        if ($forum->last_post) {     
+          $links[] = l(t("last topic"), array("nid" => $forum->last_post->nid));
+        }
+        if ($new_topics) {
+          $links[] = lm(t("first new topic"), array("mod" => "forum2", "op" => "first_new", "tid" => $forum->tid));
+        }
+        
+        if ($links) {
+          $output .= "<br>(".implode(", ", $links).")";
+        }
+        
+        $output .= "</small></td></tr></table></td>";
         $output .= "<td align=\"center\">".$forum->num_topics.($new_topics ? "<br>(".t("%a new", array("%a" => $new_topics)).")" : "")."</td><td align=\"center\">".$forum->num_posts."</td><td align=\"center\">"._forum2_format($forum->last_post)."</td></tr>";
       }
     }
