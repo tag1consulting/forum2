@@ -335,7 +335,7 @@ function forum_get_forums($tid = 0) {
     taxonomy_get_tree(variable_get("forum_nav_vocabulary", ""), $_forums, $tid);
     $n = 0;
     foreach ($_forums as $forum) {
-      if (in_array($forum->tid, variable_get("forum_containers", ""))) {
+      if (in_array($forum->tid, variable_get("forum_containers", array()))) {
         $forum->container = 1;
       }
       else {
@@ -560,7 +560,7 @@ function forum_page() {
   
     $forums = forum_get_forums($tid);
     $parents = forum_get_parents($tid);
-    if ($tid && !in_array($tid, variable_get("forum_containers", ""))) {
+    if ($tid && !in_array($tid, variable_get("forum_containers", array()))) {
       list($topics, $topic_num) = forum_get_topics($tid, $sortby, $forum_per_page, $offset);
     }
 
@@ -582,13 +582,13 @@ function forum_render($forums, $topics, $topic_num, $parents, $tid, $sortby, $fo
   global $theme;
   
   $output .= _forum_theme_invoke("forum_forum_list", $forums, $parents, $tid);
-  if ($tid && !in_array($tid, variable_get("forum_containers", ""))) {
+  if ($tid && !in_array($tid, variable_get("forum_containers", array()))) {
     $output .= _forum_theme_invoke("forum_topic_list", $topics, $topic_num, $sortby, $forum_per_page, $offset);
   }
   
   $theme->header();
   $theme->box(t("Discussion forum"), $output);
-  if ($tid && !in_array($tid, variable_get("forum_containers", ""))) {
+  if ($tid && !in_array($tid, variable_get("forum_containers", array()))) {
     $theme->box(t("Control panel"), _forum_theme_invoke("forum_topic_browser", $sortby, $forum_per_page, $offset));
   }
   $theme->footer();

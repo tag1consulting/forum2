@@ -335,7 +335,7 @@ function forum2_get_forums($tid = 0) {
     taxonomy_get_tree(variable_get("forum2_nav_vocabulary", ""), $_forums, $tid);
     $n = 0;
     foreach ($_forums as $forum) {
-      if (in_array($forum->tid, variable_get("forum2_containers", ""))) {
+      if (in_array($forum->tid, variable_get("forum2_containers", array()))) {
         $forum->container = 1;
       }
       else {
@@ -560,7 +560,7 @@ function forum2_page() {
   
     $forums = forum2_get_forums($tid);
     $parents = forum2_get_parents($tid);
-    if ($tid && !in_array($tid, variable_get("forum2_containers", ""))) {
+    if ($tid && !in_array($tid, variable_get("forum2_containers", array()))) {
       list($topics, $topic_num) = forum2_get_topics($tid, $sortby, $forum2_per_page, $offset);
     }
 
@@ -582,13 +582,13 @@ function forum2_render($forums, $topics, $topic_num, $parents, $tid, $sortby, $f
   global $theme;
   
   $output .= _forum2_theme_invoke("forum2_forum_list", $forums, $parents, $tid);
-  if ($tid && !in_array($tid, variable_get("forum2_containers", ""))) {
+  if ($tid && !in_array($tid, variable_get("forum2_containers", array()))) {
     $output .= _forum2_theme_invoke("forum2_topic_list", $topics, $topic_num, $sortby, $forum2_per_page, $offset);
   }
   
   $theme->header();
   $theme->box(t("Discussion forum"), $output);
-  if ($tid && !in_array($tid, variable_get("forum2_containers", ""))) {
+  if ($tid && !in_array($tid, variable_get("forum2_containers", array()))) {
     $theme->box(t("Control panel"), _forum2_theme_invoke("forum2_topic_browser", $sortby, $forum2_per_page, $offset));
   }
   $theme->footer();
