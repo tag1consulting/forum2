@@ -122,7 +122,7 @@ function forum2_get_forums($tid = 0) {
 
     $sql = "SELECT f.tid, COUNT(f.nid) AS topic_count, SUM(f.comment_count) AS comment_count FROM {forum2_index} f GROUP BY f.tid";
     $sql = db_rewrite_sql($sql);
-    $_counts = db_query_slave($sql);
+    $_counts = db_query($sql);
     while ($count = db_fetch_object($_counts)) {
       $counts[$count->tid] = $count;
     }
@@ -147,7 +147,7 @@ function forum2_get_forums($tid = 0) {
     // used to join node_comment_statistics to users.
     $sql = "SELECT f.last_comment_timestamp, IF (ncs.last_comment_uid != 0, u2.name, ncs.last_comment_name) AS last_comment_name, ncs.last_comment_uid FROM {forum2_index} f INNER JOIN {node} n ON f.nid = n.nid INNER JOIN {users} u1 ON n.uid = u1.uid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid INNER JOIN {users} u2 ON ncs.last_comment_uid=u2.uid WHERE f.tid = %d ORDER BY f.last_comment_timestamp DESC";
     $sql = db_rewrite_sql($sql);
-    $topic = db_fetch_object(db_query_range_slave($sql, $forum->tid, 0, 1));
+    $topic = db_fetch_object(db_query_range($sql, $forum->tid, 0, 1));
 
     $last_post = new stdClass();
     if (!empty($topic->last_comment_timestamp)) {
@@ -184,7 +184,7 @@ function forum2_nodeapi(&$node, $op, $teaser, $page) {
 function _forum2_topics_unread($term, $uid) {
   $sql = "SELECT COUNT(n.nid) FROM {node} n INNER JOIN {term_node} tn ON n.vid = tn.vid AND tn.tid = %d LEFT JOIN {history} h ON n.nid = h.nid AND h.uid = %d WHERE n.status = 1 AND n.created > %d AND h.nid IS NULL";
   $sql = db_rewrite_sql($sql);
-  return db_result(db_query_slave($sql, $term, $uid, NODE_NEW_LIMIT));
+  return db_result(db_query($sql, $term, $uid, NODE_NEW_LIMIT));
 }
 
 function forum2_get_topics($tid, $sortby, $forum_per_page) {
