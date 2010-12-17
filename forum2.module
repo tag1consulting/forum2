@@ -23,7 +23,7 @@ function forum2_cron() {
   if ($max_nid) {
     $last_nid = FALSE;
     //$res = db_query_range("SELECT nid, uid, status FROM {node} WHERE nid <= %d ORDER BY nid DESC", $max_nid, 0, $batch_size);
-    $res = db_query_range("SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid WHERE n.nid <= %d ORDER BY nid DESC", $max_nid, 0, $batch_size);
+    $res = db_query_range("SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid WHERE n.nid <= %d ORDER BY n.nid DESC", $max_nid, 0, $batch_size);
     $count = 0;
 
     while ($row = db_fetch_object($res)) {
