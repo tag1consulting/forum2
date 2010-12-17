@@ -17,7 +17,8 @@ function forum2_install() {
   db_drop_index($ret, 'forum', 'nid');
   db_add_index($ret, 'forum', 'nid', array('nid', 'tid'));
 
-  db_query("INSERT INTO {forum2_index} (nid, title, sticky, created, tid, last_comment_timestamp, comment_count) (SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid)");
+  // How to populate the denormalized table all at once...
+  //db_query("INSERT INTO {forum2_index} (nid, title, sticky, created, tid, last_comment_timestamp, comment_count) (SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid)");
 }
 
 /**
