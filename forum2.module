@@ -178,6 +178,74 @@ function forum2_nodeapi(&$node, $op, $teaser, $page) {
 }
 
 /**
+ * Calculate the number of nodes the user has not yet read and are newer
+ * than NODE_NEW_LIMIT.
+ */
+function _forum2_topics_unread($term, $uid) {
+  $sql = "SELECT COUNT(n.nid) FROM {node} n INNER JOIN {term_node} tn ON n.vid = tn.vid AND tn.tid = %d LEFT JOIN {history} h ON n.nid = h.nid AND h.uid = %d WHERE n.status = 1 AND n.created > %d AND h.nid IS NULL";
+  $sql = db_rewrite_sql($sql);
+  return db_result(db_query_slave($sql, $term, $uid, NODE_NEW_LIMIT));
+}
+
+function forum2_get_topics($tid, $sortby, $forum_per_page) {
+  global $user, $forum_topic_list_header;
+
+  $forum_topic_list_header = array(
+    NULL,
+    array('data' => t('Topic'), 'field' => 'n.title'),
+    array('data' => t('Replies'), 'field' => 'l.comment_count'),
+    array('data' => t('Created'), 'field' => 'n.created'),
+    array('data' => t('Last reply'), 'field' => 'l.last_comment_timestamp'),
+  );
+
+  $order = _forum2_get_topic_order($sortby);
+  for ($i = 0; $i < count($forum_topic_list_header); $i++) {
+    if ($forum_topic_list_header[$i]['field'] == $order['field']) {
+      $forum_topic_list_header[$i]['sort'] = $order['sort'];
+    }
+  }
+
+  $term = taxonomy_get_term($tid);
+
+  $sql = db_rewrite_sql("SELECT f.nid, f.tid, f.title, n.type, f.sticky, u.name, u.uid, f.created AS timestamp, n.comment AS comment_mode, f.last_comment_timestamp, IF(l.last_comment_uid != 0, cu.name, l.last_comment_name) AS last_comment_name, l.last_comment_uid, l.comment_count AS num_comments, f.tid AS forum_tid FROM {forum2_index} f INNER JOIN {node_comment_statistics} l ON f.nid=l.nid INNER JOIN {node} n ON n.nid = l.nid INNER JOIN {users} cu ON l.last_comment_uid = cu.uid INNER JOIN {users} u ON n.uid = u.uid WHERE f.tid = %d");
+  $sql .= tablesort_sql($forum_topic_list_header, 'f.sticky DESC,');
+  $sql .= ', f.created DESC';  // Always add a secondary sort order so that the news forum topics are on top.
+ $sql_count = db_rewrite_sql("SELECT COUNT(f.nid) FROM {forum2_index} f WHERE f.tid = %d");
+
+  $result = pager_query($sql, $forum_per_page, 0, $sql_count, $tid);
+  $topics = array();
+  while ($topic = db_fetch_object($result)) {
+    if ($user->uid) {
+      // folder is new if topic is new or there are new comments since last visit
+      if ($topic->tid != $tid) {
+        $topic->new = 0;
+      }
+      else {
+        $history = _forum_user_last_visit($topic->nid);
+        $topic->new_replies = comment_num_new($topic->nid, $history);
+        $topic->new = $topic->new_replies || ($topic->timestamp > $history);
+      }
+    }
+    else {
+      // Do not track "new replies" status for topics if the user is anonymous.
+      $topic->new_replies = 0;
+      $topic->new = 0;
+    }
+
+    if ($topic->num_comments > 0) {
+      $last_reply = new stdClass();
+      $last_reply->timestamp = $topic->last_comment_timestamp;
+      $last_reply->name = $topic->last_comment_name;
+      $last_reply->uid = $topic->last_comment_uid;
+      $topic->last_reply = $last_reply;
+    }
+    $topics[] = $topic;
+  }
+
+  return $topics;
+}
+
+/**
  * Implementation of hook_comment_publish().
  *
  * This actually handles the insert and update of published nodes since
