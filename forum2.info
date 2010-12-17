@@ -1,0 +1,5 @@
+; $Id: $
+name = Forum2
+description = Performant threaded discussions about general topics.
+dependencies[] = forum
+core = 6.x

@@ -1,0 +1,88 @@
+<?php
+// $Id: $
+
+/**
+ * Implementation of hook_install().
+ */
+function forum2_install() {
+  // Create tables.
+  drupal_install_schema('forum2_index');
+  // Set the weight of the forum2.module to 1 so it is loaded after the
+  // taxonomy.module.
+  db_query("UPDATE {system} SET weight = 1 WHERE name = 'forum2'");
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function forum2_schema() {
+  $schema['forum2_index'] = array(
+    'description' => 'Maintains denormalized information about node/term relationships. Backported from Drupal 7.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'The {node}.nid this record tracks.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'title' => array(
+        'description' => 'The title of this node, always treated as non-markup plain text.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'tid' => array(
+         'description' => 'The term ID.',
+         'type' => 'int',
+         'unsigned' => TRUE,
+         'not null' => TRUE,
+         'default' => 0,
+      ),
+      'sticky' => array(
+        'description' => 'Boolean indicating whether the node is sticky.',
+        'type' => 'int',
+        'not null' => FALSE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'created' => array(
+        'description' => 'The Unix timestamp when the node was created.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default'=> 0,
+      ),
+      'last_comment_timestamp' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'The Unix timestamp of the last comment that was posted within this node, from {comment}.timestamp.',
+      ),
+      'comment_count' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'The total number of comments on this node.',
+      ),
+    ),
+    'indexes' => array(
+      'forum_topics' => array('tid', 'sticky', 'last_comment_timestamp'),
+    ),
+  );
+
+  return $schema;
+}
+
+/**
+ * Add new index to forum table.
+ * Create new {forum2_index} table.
+ */
+function forum2_update_6000() {
+  $ret = array();
+  db_drop_index($ret, 'forum', 'nid');
+  db_add_index($ret, 'forum', 'nid', array('nid', 'tid'));
+  return $ret;
+}
