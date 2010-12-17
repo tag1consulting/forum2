@@ -163,5 +163,68 @@ function forum2_get_forums($tid = 0) {
   return $forums;
 }
 
+/**
+ * Implementation of hook_nodeapi().
+ */
+function forum2_nodeapi(&$node, $op, $teaser, $page) {
+  switch ($op) {
+    case 'insert':
+      db_query("INSERT INTO {forum2_index} (nid, title, tid, sticky, created, comment_count, last_comment_timestamp) values(%d, '%s', %d, %d, %d, %d, %d)", $node->nid, $node->title, $node->tid, $node->sticky, $node->created, 0, $node->created);
+      break;
+    case 'delete':
+      db_query('DELETE FROM {forum2_index} WHERE nid = %d', $node->nid);
+      break;
+  }
+}
 
+/**
+ * Implementation of hook_comment_publish().
+ *
+ * This actually handles the insert and update of published nodes since
+ * comment_save() calls hook_comment_publish() for all published comments.
+ */
+function forum2_comment_publish($comment) {
+ _forum2_update_forum2_index($comment['nid']);
+}
 
+/**
+ * Implementation of hook_comment_update().
+ *
+ * Comment module doesn't call hook_comment_unpublish() when saving individual
+ * comments so we need to check for those here.
+ */
+function forum2_comment_update($comment) {
+ _forum2_update_forum2_index($comment['nid']);
+}
+
+/**
+ * Implementation of hook_comment_unpublish().
+ */
+function forum2_comment_unpublish($comment) {
+ _forum2_update_forum2_index($comment['nid']);
+}
+
+/**
+ * Implementation of hook_comment_delete().
+ */
+function forum2_comment_delete($comment) {
+ _forum2_update_forum2_index($comment['nid']);
+}
+
+/**
+ * Updates the forum2_index table for a given node.
+ */
+function forum2_update_forum2_index($nid) {
+  $count = (int)db_result(db_query('SELECT COUNT(cid) FROM {comments} WHERE nid = %d AND status = %d', $nid, COMMENT_PUBLISHED));
+  if ($count > 0) {
+    // Comments exist.
+    $last_reply = db_fetch_object(db_query_range('SELECT created FROM {comments} WHERE nid = %d AND status = %d ORDER BY cid DESC', $nid, COMMENT_PUBLISHED, 0, 1));
+    $last_comment_timestamp = $last_reply->created;
+  }
+  else {
+    // Comments do not exist.
+    $node = db_fetch_object(db_query('SELECT created FROM {node} WHERE nid = %d', $nid));
+    $last_comment_timestamp = $node->created;
+  }
+  db_query('UPDATE {forum2_index} (comment_count, last_comment_timestamp) VALUES(%d, %d) WHERE nid = %d', $count, $last_comment_timestamp, $nid);
+}
