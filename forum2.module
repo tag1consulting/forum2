@@ -7,9 +7,9 @@
 function forum2_menu() {
   $items['forum'] = array(
     'title' => 'Forums',
-    'page callback' => 'forum_page',
+    'page callback' => 'forum2_page',
     'access arguments' => array('access content'),
-    'file' => 'forum.pages.inc',
+    'file' => 'forum2.pages.inc',
   );
   return $items;
 }
