@@ -93,7 +93,7 @@ function forum2_schema() {
     'primary key' => array('nid),
     'indexes' => array(
       'forum_topics' => array('tid', 'sticky', 'last_comment_timestamp', 'created'),
-      'last_comment_timestamp' => array('last_comment_timestamp'), 
+      'last_comment_timestamp' => array('last_comment_timestamp'),
     ),
   );
 
