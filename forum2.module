@@ -320,13 +320,13 @@ function forum2_update_forum2_index($nid) {
   $count = (int)db_result(db_query('SELECT COUNT(cid) FROM {comments} WHERE nid = %d AND status = %d', $nid, COMMENT_PUBLISHED));
   if ($count > 0) {
     // Comments exist.
-    $last_reply = db_fetch_object(db_query_range('SELECT created FROM {comments} WHERE nid = %d AND status = %d ORDER BY cid DESC', $nid, COMMENT_PUBLISHED, 0, 1));
-    $last_comment_timestamp = $last_reply->created;
+    $last_reply = db_fetch_object(db_query_range('SELECT timestamp FROM {comments} WHERE nid = %d AND status = %d ORDER BY cid DESC', $nid, COMMENT_PUBLISHED, 0, 1));
+    $last_comment_timestamp = $last_reply->timestamp;
   }
   else {
     // Comments do not exist.
     $node = db_fetch_object(db_query('SELECT created FROM {node} WHERE nid = %d', $nid));
     $last_comment_timestamp = $node->created;
   }
-  db_query('UPDATE {forum2_index} (comment_count, last_comment_timestamp) VALUES(%d, %d) WHERE nid = %d', $count, $last_comment_timestamp, $nid);
+  db_query('UPDATE {forum2_index} SET comment_count = %d, last_comment_timestamp = %d WHERE nid = %d', $count, $last_comment_timestamp, $nid);
 }
