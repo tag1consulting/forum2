@@ -193,9 +193,9 @@ function forum2_get_topics($tid, $sortby, $forum_per_page) {
   $forum_topic_list_header = array(
     NULL,
     array('data' => t('Topic'), 'field' => 'n.title'),
-    array('data' => t('Replies'), 'field' => 'l.comment_count'),
+    array('data' => t('Replies'), 'field' => 'f.comment_count'),
     array('data' => t('Created'), 'field' => 'n.created'),
-    array('data' => t('Last reply'), 'field' => 'l.last_comment_timestamp'),
+    array('data' => t('Last reply'), 'field' => 'f.last_comment_timestamp'),
   );
 
   $order = _forum2_get_topic_order($sortby);
