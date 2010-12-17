@@ -82,7 +82,7 @@ function forum2_block($op = 'list', $delta = 0, $edit = array()) {
 
           case 1:
             $title = t('New forum topics');
-            $sql = db_rewrite_sql("SELECT f.nid, f.title, l.comment_count FROM {forum2_index} f ORDER BY f.nid DESC");
+            $sql = db_rewrite_sql("SELECT f.nid, f.title, f.comment_count FROM {forum2_index} f ORDER BY f.nid DESC");
             $result = db_query_range($sql, variable_get('forum_nav_vocabulary', ''), 0, variable_get('forum_block_num_1', '5'));
             $content = node_title_list($result);
             break;
