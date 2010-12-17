@@ -286,7 +286,7 @@ function _forum2_get_topic_order($sortby) {
  * comment_save() calls hook_comment_publish() for all published comments.
  */
 function forum2_comment_publish($comment) {
- _forum2_update_forum2_index($comment['nid']);
+  forum2_update_forum2_index($comment['nid']);
 }
 
 /**
@@ -296,21 +296,21 @@ function forum2_comment_publish($comment) {
  * comments so we need to check for those here.
  */
 function forum2_comment_update($comment) {
- _forum2_update_forum2_index($comment['nid']);
+  forum2_update_forum2_index($comment['nid']);
 }
 
 /**
  * Implementation of hook_comment_unpublish().
  */
 function forum2_comment_unpublish($comment) {
- _forum2_update_forum2_index($comment['nid']);
+  forum2_update_forum2_index($comment['nid']);
 }
 
 /**
  * Implementation of hook_comment_delete().
  */
 function forum2_comment_delete($comment) {
- _forum2_update_forum2_index($comment['nid']);
+  forum2_update_forum2_index($comment['nid']);
 }
 
 /**
