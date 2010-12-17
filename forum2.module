@@ -17,30 +17,14 @@ function forum2_cron() {
   $max_nid = variable_get('forum2_index_nid', 0);
   $batch_size = variable_get('forum2_batch_size', 1000);
   if ($max_nid) {
-    
-    
-    
-    
     $last_nid = FALSE;
-    $res = db_query_range("SELECT nid, uid, status FROM {node} WHERE nid <= %d ORDER BY nid DESC", $max_nid, 0, $batch_size);
+    //$res = db_query_range("SELECT nid, uid, status FROM {node} WHERE nid <= %d ORDER BY nid DESC", $max_nid, 0, $batch_size);
+    $res = db_query_range("SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid WHERE n.nid <= %d ORDER BY nid DESC", $max_nid, 0, $batch_size);
     $count = 0;
 
     while ($row = db_fetch_object($res)) {
-      // Calculate the changed timestamp for this node.
-      $changed = _tracker2_calculate_changed($row->nid);
-
-      // Remove existing data for this node.
-      db_query("DELETE FROM {tracker2_node} WHERE nid = %d", $row->nid);
-      db_query("DELETE FROM {tracker2_user} WHERE nid = %d", $row->nid);
-
-      // Insert the node-level data.
-      db_query("INSERT INTO {tracker2_node} (nid, published, changed) VALUES (%d, %d, %d)", $row->nid, $row->status, $changed);
-
-      // Insert the user-level data for the node's author.
-      db_query("INSERT INTO {tracker2_user} (nid, published, uid, changed) VALUES (%d, %d, %d, %d)", $row->nid, $row->status, $row->uid, $changed);
-
-      // Insert the user-level data for the commenters (except if a commenter is the node's author).
-      db_query("INSERT INTO {tracker2_user} (nid, published, uid, changed) SELECT DISTINCT %d AS nid, %d AS published, uid, %d AS changed FROM {comments} WHERE nid = %d AND uid <> %d AND status = %d", $row->nid, $row->status, $changed, $row->nid, $row->uid, COMMENT_PUBLISHED);
+      db_query("DELETE FROM {forum2_index} WHERE nid = %d", $row->nid);
+      drupal_write_record('forum2_index', $row);
 
       // Note that we have indexed at least one node.
       $last_nid = $row->nid;
@@ -50,13 +34,13 @@ function forum2_cron() {
 
     if ($last_nid !== FALSE) {
       // Prepare a starting point for the next run.
-      variable_set('tracker2_index_nid', $last_nid - 1);
+      variable_set('forum2_index_nid', $last_nid - 1);
 
-      watchdog('tracker2', 'Indexed %count nodes for tracking.', array('%count' => $count));
+      watchdog('forum2', 'Indexed %count nodes for tracking.', array('%count' => $count));
     }
     else {
       // If all nodes have been indexed, set to zero to skip future cron runs.
-      variable_set('tracker2_index_nid', 0);
+      variable_set('forum2_index_nid', 0);
     }
   }
 }
