@@ -6,10 +6,14 @@
  */
 function forum2_install() {
   // Create tables.
-  drupal_install_schema('forum2_index');
+  drupal_install_schema('forum2');
   // Set the weight of the forum2.module to 1 so it is loaded after the
   // taxonomy.module.
   db_query("UPDATE {system} SET weight = 1 WHERE name = 'forum2'");
+
+  $ret = array();
+  db_drop_index($ret, 'forum', 'nid');
+  db_add_index($ret, 'forum', 'nid', array('nid', 'tid'));
 }
 
 /**
