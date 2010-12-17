@@ -2,4 +2,5 @@
 name = Forum2
 description = Performant threaded discussions about general topics.
 dependencies[] = forum
+dependencies[] = tracker2
 core = 6.x
