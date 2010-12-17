@@ -328,5 +328,5 @@ function forum2_update_forum2_index($nid) {
     $node = db_fetch_object(db_query('SELECT created FROM {node} WHERE nid = %d', $nid));
     $last_comment_timestamp = $node->created;
   }
-  db_query('UPDATE {forum2_index} (comment_count, last_comment_timestamp) VALUES(%d, %d) WHERE nid = %d', $count, $last_comment_timestamp, $nid);
+  db_query('UPDATE {forum2_index} SET comment_count = %d, last_comment_timestamp = %d WHERE nid = %d', $count, $last_comment_timestamp, $nid);
 }
