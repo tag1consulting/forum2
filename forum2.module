@@ -10,3 +10,15 @@ function forum2_menu() {
   return $items;
 }
 
+/**
+ * Implements hook_menu().
+ */
+function forum2_menu() {
+  $items['forum'] = array(
+    'title' => 'Forums',
+    'page callback' => 'forum_page',
+    'access arguments' => array('access content'),
+    'file' => 'forum.pages.inc',
+  );
+  return $items;
+}
