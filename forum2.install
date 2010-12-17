@@ -11,6 +11,8 @@ function forum2_install() {
   // taxonomy.module.
   db_query("UPDATE {system} SET weight = 1 WHERE name = 'forum2'");
 
+  // Back port the index cleanup from Drupal 7, but don't rename the index
+  // so eventually upgrades to D7 don't complain.
   $ret = array();
   db_drop_index($ret, 'forum', 'nid');
   db_add_index($ret, 'forum', 'nid', array('nid', 'tid'));
@@ -31,6 +33,8 @@ function forum2_enable() {
 
 /**
  * Implementation of hook_schema().
+ * We name our table 'forum2_index' instead of 'forum_index' so we don't break
+ * upgrades to Drupal 7.
  */
 function forum2_schema() {
   $schema['forum2_index'] = array(
