@@ -16,6 +16,19 @@ function forum2_install() {
   $ret = array();
   db_drop_index($ret, 'forum', 'nid');
   db_add_index($ret, 'forum', 'nid', array('nid', 'tid'));
+
+  db_query("INSERT INTO {forum2_index} (nid, title, sticky, created, tid, last_comment_timestamp, comment_count) (SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid)");
+}
+
+/**
+ * Implementation of hook_enable().
+ */
+function forum2_enable() {
+  $max_nid = db_result(db_query('SELECT MAX(nid) FROM {node}'));
+  variable_set('forum2_index_nid', $max_nid);
+  if ($max_nid) {
+    drupal_set_message(t('Forum2 will index from node %nid downward.', array('%nid' => $max_nid)));
+  }
 }
 
 /**

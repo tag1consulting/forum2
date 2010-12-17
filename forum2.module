@@ -1,15 +1,6 @@
 <?php
 // $Id: $
 
-
-/**
- * Implementation of hook_menu().
- */
-function forum2_menu() {
-  $items = array();
-  return $items;
-}
-
 /**
  * Implements hook_menu().
  */
@@ -21,4 +12,87 @@ function forum2_menu() {
     'file' => 'forum.pages.inc',
   );
   return $items;
+}
+
+/**
+ * Implementation of hook_cron().
+ */
+function forum2_cron() {
+  $max_nid = variable_get('forum2_index_nid', 0);
+  $batch_size = variable_get('forum2_batch_size', 1000);
+  if ($max_nid) {
+    $last_nid = FALSE;
+    //$res = db_query_range("SELECT nid, uid, status FROM {node} WHERE nid <= %d ORDER BY nid DESC", $max_nid, 0, $batch_size);
+    $res = db_query_range("SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid WHERE n.nid <= %d ORDER BY nid DESC", $max_nid, 0, $batch_size);
+    $count = 0;
+
+    while ($row = db_fetch_object($res)) {
+      db_query("DELETE FROM {forum2_index} WHERE nid = %d", $row->nid);
+      drupal_write_record('forum2_index', $row);
+
+      // Note that we have indexed at least one node.
+      $last_nid = $row->nid;
+
+      $count++;
+    }
+
+    if ($last_nid !== FALSE) {
+      // Prepare a starting point for the next run.
+      variable_set('forum2_index_nid', $last_nid - 1);
+
+      watchdog('forum2', 'Indexed %count nodes for tracking.', array('%count' => $count));
+    }
+    else {
+      // If all nodes have been indexed, set to zero to skip future cron runs.
+      variable_set('forum2_index_nid', 0);
+    }
+  }
+}
+
+/*
+ * Implementation of hook_block().
+ *
+ * Generates a block containing the currently active forum topics and the
+ * most recently added forum topics.
+ */
+function forum2_block($op = 'list', $delta = 0, $edit = array()) {
+  switch ($op) {
+    case 'list':
+      $blocks[0]['info'] = t('Active forum topics');
+      $blocks[1]['info'] = t('New forum topics');
+      return $blocks;
+
+    case 'configure':
+      $form['forum_block_num_'. $delta] = array('#type' => 'select', '#title' => t('Number of topics'), '#default_value' => variable_get('forum_block_num_'. $delta, '5'), '#options' => drupal_map_assoc(array(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)));
+      return $form;
+
+    case 'save':
+      variable_set('forum_block_num_'. $delta, $edit['forum_block_num_'. $delta]);
+      break;
+
+    case 'view':
+      if (user_access('access content')) {
+        switch ($delta) {
+          case 0:
+            $title = t('Active forum topics');
+            $sql = db_rewrite_sql("SELECT f.nid, f.title, f.comment_count, f.last_comment_timestamp FROM {forum2_index} f ORDER BY f.last_comment_timestamp DESC");
+            $result = db_query_range($sql, variable_get('forum_nav_vocabulary', ''), 0, variable_get('forum_block_num_0', '5'));
+            $content = node_title_list($result);
+            break;
+
+          case 1:
+            $title = t('New forum topics');
+            $sql = db_rewrite_sql("SELECT f.nid, f.title, l.comment_count FROM {forum2_index} f ORDER BY f.nid DESC");
+            $result = db_query_range($sql, variable_get('forum_nav_vocabulary', ''), 0, variable_get('forum_block_num_1', '5'));
+            $content = node_title_list($result);
+            break;
+        }
+
+        if (!empty($content)) {
+          $block['subject'] = $title;
+          $block['content'] = $content . theme('more_link', url('forum'), t('Read the latest forum topics.'));
+          return $block;
+        }
+      }
+  }
 }
