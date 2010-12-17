@@ -245,6 +245,23 @@ function forum2_get_topics($tid, $sortby, $forum_per_page) {
   return $topics;
 }
 
+function _forum2_get_topic_order($sortby) {
+  switch ($sortby) {
+    case 1:
+      return array('field' => 'f.last_comment_timestamp', 'sort' => 'desc');
+      break;
+    case 2:
+      return array('field' => 'f.last_comment_timestamp', 'sort' => 'asc');
+      break;
+    case 3:
+      return array('field' => 'f.comment_count', 'sort' => 'desc');
+      break;
+    case 4:
+      return array('field' => 'f.comment_count', 'sort' => 'asc');
+      break;
+  }
+}
+
 /**
  * Implementation of hook_comment_publish().
  *
