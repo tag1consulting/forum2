@@ -96,3 +96,72 @@ function forum2_block($op = 'list', $delta = 0, $edit = array()) {
       }
   }
 }
+
+/**
+ * Returns a list of all forums for a given taxonomy id
+ *
+ * Forum objects contain the following fields
+ * -num_topics Number of topics in the forum
+ * -num_posts Total number of posts in all topics
+ * -last_post Most recent post for the forum
+ *
+ * @param $tid
+ *   Taxonomy ID of the vocabulary that holds the forum list.
+ * @return
+ *   Array of object containing the forum information.
+ */
+function forum2_get_forums($tid = 0) {
+
+  $forums = array();
+  $vid = variable_get('forum_nav_vocabulary', '');
+  $_forums = taxonomy_get_tree($vid, $tid);
+
+  if (count($_forums)) {
+
+    $counts = array();
+
+    $sql = "SELECT f.tid, COUNT(f.nid) AS topic_count, SUM(f.comment_count) AS comment_count FROM {forum2_index} f GROUP BY f.tid";
+    $sql = db_rewrite_sql($sql);
+    $_counts = db_query_slave($sql);
+    while ($count = db_fetch_object($_counts)) {
+      $counts[$count->tid] = $count;
+    }
+  }
+
+  foreach ($_forums as $forum) {
+    if (in_array($forum->tid, variable_get('forum_containers', array()))) {
+      $forum->container = 1;
+    }
+
+    if (!empty($counts[$forum->tid])) {
+      $forum->num_topics = $counts[$forum->tid]->topic_count;
+      $forum->num_posts = $counts[$forum->tid]->topic_count + $counts[$forum->tid]->comment_count;
+    }
+    else {
+      $forum->num_topics = 0;
+      $forum->num_posts = 0;
+    }
+
+    // This query does not use full ANSI syntax since MySQL 3.x does not support
+    // table1 INNER JOIN table2 INNER JOIN table3 ON table2_criteria ON table3_criteria
+    // used to join node_comment_statistics to users.
+    $sql = "SELECT f.last_comment_timestamp, IF (ncs.last_comment_uid != 0, u2.name, ncs.last_comment_name) AS last_comment_name, ncs.last_comment_uid FROM {forum2_index} f INNER JOIN {node} n ON f.nid = n.nid INNER JOIN {users} u1 ON n.uid = u1.uid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid INNER JOIN {users} u2 ON ncs.last_comment_uid=u2.uid WHERE f.tid = %d ORDER BY f.last_comment_timestamp DESC";
+    $sql = db_rewrite_sql($sql);
+    $topic = db_fetch_object(db_query_range_slave($sql, $forum->tid, 0, 1));
+
+    $last_post = new stdClass();
+    if (!empty($topic->last_comment_timestamp)) {
+      $last_post->timestamp = $topic->last_comment_timestamp;
+      $last_post->name = $topic->last_comment_name;
+      $last_post->uid = $topic->last_comment_uid;
+    }
+    $forum->last_post = $last_post;
+
+    $forums[$forum->tid] = $forum;
+  }
+
+  return $forums;
+}
+
+
+
