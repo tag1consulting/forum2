@@ -98,6 +98,23 @@ function forum2_block($op = 'list', $delta = 0, $edit = array()) {
 }
 
 /**
+ * Implementation of hook_comment().
+ */
+function forum2_comment(&$comment, $op) {
+  switch ($op) {
+    case 'insert':
+    case 'update':
+      return forum2_comment_update($comment);
+    case 'delete':
+      return forum2_comment_delete($comment);
+    case 'publish':
+      return forum2_comment_publish($comment);
+    case 'unpublish':
+      return forum2_comment_unpublish($comment);
+  }
+}
+
+/**
  * Returns a list of all forums for a given taxonomy id
  *
  * Forum objects contain the following fields
@@ -269,7 +286,7 @@ function _forum2_get_topic_order($sortby) {
  * comment_save() calls hook_comment_publish() for all published comments.
  */
 function forum2_comment_publish($comment) {
- _forum2_update_forum2_index($comment['nid']);
+  forum2_update_forum2_index($comment['nid']);
 }
 
 /**
@@ -279,21 +296,21 @@ function forum2_comment_publish($comment) {
  * comments so we need to check for those here.
  */
 function forum2_comment_update($comment) {
- _forum2_update_forum2_index($comment['nid']);
+  forum2_update_forum2_index($comment['nid']);
 }
 
 /**
  * Implementation of hook_comment_unpublish().
  */
 function forum2_comment_unpublish($comment) {
- _forum2_update_forum2_index($comment['nid']);
+  forum2_update_forum2_index($comment['nid']);
 }
 
 /**
  * Implementation of hook_comment_delete().
  */
 function forum2_comment_delete($comment) {
- _forum2_update_forum2_index($comment['nid']);
+  forum2_update_forum2_index($comment['nid']);
 }
 
 /**
