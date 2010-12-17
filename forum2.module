@@ -98,6 +98,23 @@ function forum2_block($op = 'list', $delta = 0, $edit = array()) {
 }
 
 /**
+ * Implementation of hook_comment().
+ */
+function forum2_comment(&$comment, $op) {
+  switch ($op) {
+    case 'insert':
+    case 'update':
+      return forum2_comment_update($comment);
+    case 'delete':
+      return forum2_comment_delete($comment);
+    case 'publish':
+      return forum2_comment_publish($comment);
+    case 'unpublish':
+      return forum2_comment_unpublish($comment);
+  }
+}
+
+/**
  * Returns a list of all forums for a given taxonomy id
  *
  * Forum objects contain the following fields
