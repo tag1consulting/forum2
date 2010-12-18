@@ -8,7 +8,7 @@ function forum2_install() {
   // Create tables.
   drupal_install_schema('forum2');
   // Set the weight of the forum2.module to 1 so it is loaded after the
-  // taxonomy.module.
+  // taxonomy.module and the forum.module.
   db_query("UPDATE {system} SET weight = 1 WHERE name = 'forum2'");
 
   // Back port the index cleanup from Drupal 7, but don't rename the index

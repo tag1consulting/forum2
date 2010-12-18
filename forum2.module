@@ -16,6 +16,10 @@ function forum2_menu() {
 
 /**
  * Implementation of hook_cron().
+ *
+ * Index forum entries created before forum2 module was enabled.  The
+ * forum2_index_nid variable gets set but the hook_enable defined in
+ * forum2.install.
  */
 function forum2_cron() {
   $max_nid = variable_get('forum2_index_nid', 0);
