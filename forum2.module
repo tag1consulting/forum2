@@ -22,11 +22,10 @@ function forum2_cron() {
   $batch_size = variable_get('forum2_batch_size', 1000);
   if ($max_nid) {
     $last_nid = FALSE;
-    //$res = db_query_range("SELECT nid, uid, status FROM {node} WHERE nid <= %d ORDER BY nid DESC", $max_nid, 0, $batch_size);
-    $res = db_query_range("SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid WHERE n.nid <= %d ORDER BY n.nid DESC", $max_nid, 0, $batch_size);
+    $result = db_query_range("SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid WHERE n.nid <= %d ORDER BY n.nid DESC", $max_nid, 0, $batch_size);
     $count = 0;
 
-    while ($row = db_fetch_object($res)) {
+    while ($row = db_fetch_object($result)) {
       db_query("DELETE FROM {forum2_index} WHERE nid = %d", $row->nid);
       drupal_write_record('forum2_index', $row);
 
@@ -117,10 +116,10 @@ function forum2_comment(&$comment, $op) {
 /**
  * Returns a list of all forums for a given taxonomy id
  *
- * Forum objects contain the following fields
- * -num_topics Number of topics in the forum
- * -num_posts Total number of posts in all topics
- * -last_post Most recent post for the forum
+ * Forum objects contain the following fields:
+ *  - num_topics: Number of topics in the forum
+ *  - num_posts:  Total number of posts in all topics
+ *  - last_post:  Most recent post for the forum
  *
  * @param $tid
  *   Taxonomy ID of the vocabulary that holds the forum list.
@@ -128,15 +127,12 @@ function forum2_comment(&$comment, $op) {
  *   Array of object containing the forum information.
  */
 function forum2_get_forums($tid = 0) {
-
   $forums = array();
   $vid = variable_get('forum_nav_vocabulary', '');
   $_forums = taxonomy_get_tree($vid, $tid);
 
   if (count($_forums)) {
-
     $counts = array();
-
     $sql = "SELECT f.tid, COUNT(f.nid) AS topic_count, SUM(f.comment_count) AS comment_count FROM {forum2_index} f GROUP BY f.tid";
     $sql = db_rewrite_sql($sql);
     $_counts = db_query($sql);
@@ -160,8 +156,8 @@ function forum2_get_forums($tid = 0) {
     }
 
     // This query does not use full ANSI syntax since MySQL 3.x does not support
-    // table1 INNER JOIN table2 INNER JOIN table3 ON table2_criteria ON table3_criteria
-    // used to join node_comment_statistics to users.
+    // table1 INNER JOIN table2 INNER JOIN table3 ON table2_criteria ON
+    // table3_criteria used to join node_comment_statistics to users.
     $sql = "SELECT f.last_comment_timestamp, IF (ncs.last_comment_uid != 0, u2.name, ncs.last_comment_name) AS last_comment_name, ncs.last_comment_uid FROM {forum2_index} f INNER JOIN {node} n ON f.nid = n.nid INNER JOIN {users} u1 ON n.uid = u1.uid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid INNER JOIN {users} u2 ON ncs.last_comment_uid=u2.uid WHERE f.tid = %d ORDER BY f.last_comment_timestamp DESC";
     $sql = db_rewrite_sql($sql);
     $topic = db_fetch_object(db_query_range($sql, $forum->tid, 0, 1));
