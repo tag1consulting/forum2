@@ -3,6 +3,8 @@
 
 /**
  * Implements hook_menu().
+ *
+ * Replace /forum in the menu with our optimized version of the forum pages.
  */
 function forum2_menu() {
   $items['forum'] = array(
