@@ -207,15 +207,13 @@ function forum2_get_topics($tid, $sortby, $forum_per_page) {
     NULL,
     array('data' => t('Topic'), 'field' => 'f.title'),
     array('data' => t('Replies'), 'field' => 'f.comment_count'),
-    array('data' => t('Created'), 'field' => 'f.created', 'sort' => 'desc'),
+    array('data' => t('Created'), 'field' => 'f.created'),
     array('data' => t('Last reply'), 'field' => 'f.last_comment_timestamp'),
   );
 
-  $order = _forum2_get_topic_order($sortby);
-  for ($i = 0; $i < count($forum_topic_list_header); $i++) {
-    if ($forum_topic_list_header[$i]['field'] == $order['field']) {
-      $forum_topic_list_header[$i]['sort'] = $order['sort'];
-    }
+  // Set sort order in header array based on administrative configuration.
+  foreach (_forum2_get_topic_order($sortby) as $key => $order) {
+    $forum_topic_list_header[$key]['sort'] = $order;
   }
 
   $term = taxonomy_get_term($tid);
@@ -260,17 +258,17 @@ function forum2_get_topics($tid, $sortby, $forum_per_page) {
 function _forum2_get_topic_order($sortby) {
   switch ($sortby) {
     case 1:
-      return array('field' => 'f.last_comment_timestamp', 'sort' => 'desc');
-      break;
+      // Sort by f.comment_count desc
+      return array('2' => 'desc');
     case 2:
-      return array('field' => 'f.last_comment_timestamp', 'sort' => 'asc');
-      break;
+      // Sort by f.comment_count asc
+      return array('2' => 'asc');
     case 3:
-      return array('field' => 'f.comment_count', 'sort' => 'desc');
-      break;
+      // Sort by f.created desc
+      return array('3' => 'desc');
     case 4:
-      return array('field' => 'f.comment_count', 'sort' => 'asc');
-      break;
+      // Sort by f.created asc
+      return array('3' => 'asc');
   }
 }
 
