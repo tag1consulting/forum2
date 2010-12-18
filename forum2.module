@@ -303,7 +303,7 @@ function forum2_comment_unpublish($comment) {
  * Implementation of hook_comment_delete().
  */
 function forum2_comment_delete($comment) {
-  forum2_update_forum2_index($comment['nid']);
+  forum2_update_forum2_index($comment->nid);
 }
 
 /**
