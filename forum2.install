@@ -12,12 +12,16 @@ function forum2_install() {
   db_query("UPDATE {system} SET weight = 1 WHERE name = 'forum2'");
 
   // Back port the index cleanup from Drupal 7, but don't rename the index
-  // so eventually upgrades to D7 don't complain.
+  // so eventual upgrades to D7 don't complain.
   $ret = array();
   db_drop_index($ret, 'forum', 'nid');
   db_add_index($ret, 'forum', 'nid', array('nid', 'tid'));
 
-  // How to populate the denormalized table all at once...
+  // The following query would allow you to populate the denormalized table all
+  // at once, but would lock up your website while it runs.  By default we
+  // instead populate the forum2_index over time when cron runs.  The
+  // forum2_index table is populated in backwards order, so the newest content
+  // shows up first.
   //db_query("INSERT INTO {forum2_index} (nid, title, sticky, created, tid, last_comment_timestamp, comment_count) (SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid)");
 }
 
@@ -99,15 +103,4 @@ function forum2_schema() {
   );
 
   return $schema;
-}
-
-/**
- * Add new index to forum table.
- * Create new {forum2_index} table.
- */
-function forum2_update_6000() {
-  $ret = array();
-  db_drop_index($ret, 'forum', 'nid');
-  db_add_index($ret, 'forum', 'nid', array('nid', 'tid'));
-  return $ret;
 }
