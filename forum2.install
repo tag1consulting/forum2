@@ -1,0 +1,106 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_install().
+ */
+function forum2_install() {
+  // Create tables.
+  drupal_install_schema('forum2');
+  // Set the weight of the forum2.module to 1 so it is loaded after the
+  // taxonomy.module and the forum.module.
+  db_query("UPDATE {system} SET weight = 2 WHERE name = 'forum2'");
+
+  // Back port the index cleanup from Drupal 7, but don't rename the index
+  // so eventual upgrades to D7 don't complain.
+  $ret = array();
+  db_drop_index($ret, 'forum', 'nid');
+  db_add_index($ret, 'forum', 'nid', array('nid', 'tid'));
+
+  // The following query would allow you to populate the denormalized table all
+  // at once, but would lock up your website while it runs.  By default we
+  // instead populate the forum2_index over time when cron runs.  The
+  // forum2_index table is populated in backwards order, so the newest content
+  // shows up first.
+  //db_query("INSERT INTO {forum2_index} (nid, title, sticky, created, tid, last_comment_timestamp, comment_count) (SELECT n.nid, n.title, n.sticky, n.created, f.tid, ncs.last_comment_timestamp, ncs.comment_count FROM {node} n INNER JOIN {forum} f ON n.vid = f.vid INNER JOIN {node_comment_statistics} ncs ON n.nid = ncs.nid)");
+}
+
+/**
+ * Implementation of hook_enable().
+ */
+function forum2_enable() {
+  $max_nid = db_result(db_query('SELECT MAX(nid) FROM {node}'));
+  variable_set('forum2_index_nid', $max_nid);
+  if ($max_nid) {
+    drupal_set_message(t('Forum2 will index from node %nid downward.', array('%nid' => $max_nid)));
+  }
+}
+
+/**
+ * Implementation of hook_schema().
+ * We name our table 'forum2_index' instead of 'forum_index' so we don't break
+ * upgrades to Drupal 7.
+ */
+function forum2_schema() {
+  $schema['forum2_index'] = array(
+    'description' => 'Maintains denormalized information about node/term relationships. Backported from Drupal 7.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'The {node}.nid this record tracks.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'title' => array(
+        'description' => 'The title of this node, always treated as non-markup plain text.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'tid' => array(
+         'description' => 'The term ID.',
+         'type' => 'int',
+         'unsigned' => TRUE,
+         'not null' => TRUE,
+         'default' => 0,
+      ),
+      'sticky' => array(
+        'description' => 'Boolean indicating whether the node is sticky.',
+        'type' => 'int',
+        'not null' => FALSE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'created' => array(
+        'description' => 'The Unix timestamp when the node was created.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default'=> 0,
+      ),
+      'last_comment_timestamp' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'The Unix timestamp of the last comment that was posted within this node, from {comment}.timestamp.',
+      ),
+      'comment_count' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'The total number of comments on this node.',
+      ),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'forum_topics' => array('tid', 'sticky', 'last_comment_timestamp', 'created'),
+      'last_comment_timestamp' => array('last_comment_timestamp'),
+      'tid_last_comment_timestamp' => array('tid', 'last_comment_timestamp'),
+    ),
+  );
+
+  return $schema;
+}
