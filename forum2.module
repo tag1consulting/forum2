@@ -189,6 +189,9 @@ function forum2_nodeapi(&$node, $op, $teaser, $page) {
     case 'insert':
       db_query("INSERT INTO {forum2_index} (nid, title, tid, sticky, created, comment_count, last_comment_timestamp) values(%d, '%s', %d, %d, %d, %d, %d)", $node->nid, $node->title, $node->tid, $node->sticky, $node->created, 0, $node->created);
       break;
+    case 'update':
+      db_query("UPDATE {forum2_index} SET title = '%s', tid = %d, sticky = %d, created = %d WHERE nid = %d", $node->title, $node->tid, $node->sticky, $node->created, $node->nid);
+      break;
     case 'delete':
       db_query('DELETE FROM {forum2_index} WHERE nid = %d', $node->nid);
       break;
