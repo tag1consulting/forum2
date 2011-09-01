@@ -1,4 +1,3 @@
-; $Id: $
 name = Forum 2
 description = Performant threaded discussions about general topics.
 dependencies[] = forum
